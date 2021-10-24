@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/2.2.4/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-vis"></script>
+    <title>Document</title>
+</head>
+<body>
+    <canvas hidden id="canvas1" width="416" height="416" name="canvas1">瀏覽器尚不支援</canvas>
+    <canvas id="canvas2" width="416" height="416" name="canvas2">瀏覽器尚不支援</canvas>
+    <video hidden id='vid' width="416" height="416"></video>
+    <img id="img" width="416" height="416" onload=""/>
+    <input type="file" id="img_input" accept="image/*" onchange='saveimg(this)'/>
+    <button type="button" id="start">開始</button>
+    <button type="button" id="pause">暫停</button>
+    <script>
+        let bbox;
+        let canvas1 = document.getElementById("canvas1");
+        let ctx = canvas1.getContext("2d");
+        let img = document.getElementById('img');
+        let vid = document.getElementById('vid');
+        //let startbtn = document.getElementById('start');
+        //let pausebtn = document.getElementById('pause');
+        function saveimg(e){
+            let file = e.files[0];
+            let reader = new FileReader;
+            reader.onloadend = function(ee){
+                img.src = ee.target.result;
+                img.width = 416;
+                img.height = 416;
+            };
+            reader.readAsDataURL(file)
+            /*img.onload = function() {
+                canvas1.width = img.width;
+                canvas1.height = img.height
+                ctx.drawImage(img,0,0)
+                URL.revokeObjectURL(img.src) // free memory
+            }*/
+        }
+        function send_to_flask(){
+            let raw =  JSON.stringify(tf.browser.fromPixels(img,3).arraySync())
+                //console.log(raw);
+                $.ajax({ 
+                url: '/img', 
+                type: 'POST', 
+                data: raw,
+                success: function(response){ 
+                    bbox = JSON.parse(response)
+                    console.log(bbox);
+                    ctx.clearRect(0, 0, canvas1.width, canvas1.height);
+                    ctx.drawImage(img,0,0,416,416)
+                    for (let index = 0; index < bbox.length; index++) {
+                        let x = bbox[index][2]*1;
+                        let y = bbox[index][1]*1;
+                        let dx = bbox[index][4]*1 - x;
+                        let dy = bbox[index][3]*1 - y
+                        boundingbox(x,y,dx,dy,bbox[index][0]);
+                    }
+                }
+                })
+        }
+        function boundingbox(x,y,dx,dy,font){
+            ctx.beginPath();
+            ctx.strokeStyle = 'red';
+            ctx.rect(x,y,dx,dy);
+            ctx.stroke();
+            ctx.fillStyle = "red"
+            ctx.fillRect(x,y-8,ctx.measureText(font).width,8)
+            ctx.fillStyle = "white"
+            ctx.fillText(font,x,y);
+        }
+    </script>
+    <script src="..//static/script.js"></script>
+</body>
+</html>
